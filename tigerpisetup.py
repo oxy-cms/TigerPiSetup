@@ -29,14 +29,14 @@ def main(): #main function
       ALPHABET = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ./" #alphabet as a string for entropy
       salt = ''.join(random.choice(ALPHABET) for i in range(16)) #picks 16 random characters to use as a salt
       shadow_password = crypt.crypt(userpass,'$6$'+salt+'$') #salts the password
-      call(['usermod', '-p', shadow_password, 'pi']) #uses usermod to change the password for the user, storing it as a salted password
+      call(['sudo','usermod', '-p', shadow_password, 'pi']) #uses usermod to change the password for the user, storing it as a salted password
       #Changing the Hostname
       hostname = raw_input("Please enter the hostname: \n") #prompt to input host name
-      call(['raspi-config', 'nonint', 'do_hostname', repr(repr(hostname))]) #uses the raspi-config script to change the hostname
-      call(['hostname', '-b', repr(repr(hostname))]) #changes it in the system as well
-      call(['systemctl', 'restart', 'avahi-daemon']) #restarts one of the networking services
+      call(['sudo','raspi-config', 'nonint', 'do_hostname', repr(repr(hostname))]) #uses the raspi-config script to change the hostname
+      call(['sudo','hostname', '-b', repr(repr(hostname))]) #changes it in the system as well
+      call(['sudo','systemctl', 'restart', 'avahi-daemon']) #restarts one of the networking services
       #Setting Up Web Content
-      url = input("Please enter the web/slideshow URL: \n") #prompt for URL for slideshow or other web content
+      url = raw_input("Please enter the web/slideshow URL: \n") #prompt for URL for slideshow or other web content
       def makescripts(): #easier to group this as one function to create the shell scripts used to launch, restart, etc the web content.
         launch = open("/home/pi/dd_script/launch_chrome.sh","w") #file path to write to
         launch.write("sleep 30") #pause so the Pi doesn't eat up all its resources on startup, and allows for network connection
