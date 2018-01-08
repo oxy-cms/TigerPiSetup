@@ -13,10 +13,9 @@ import os,crypt,random,sys,socket #for file manipulation, password encryption, a
 
 def main(): #main function
   #Decryption and Authorization
-  password = input("Please enter the setup password: \n") #prompts for setup password, which decrypts user and email password and prevents unauthorized setup
-  pwd = "pass:" + password #formatting for next line
+  password = raw_input("Please enter the setup password: \n") #prompts for setup password, which decrypts user and email password and prevents unauthorized setup
   #call(['openssl', 'des3', '-d', '-in', '/home/pi/dd_script/nopass4u.txt', '-out', '/home/pi/dd_script/pwdfile.txt', '-pass', pwd])
-  call(['gnupg', '--output', '/home/pi/dd_script/pwdfile.txt','--passphrase', pwd, '--batch', '--decrypt', '/home/pi/dd_script/nopass4u.txt'])
+  call(['gpg', '--output', '/home/pi/dd_script/pwdfile.txt','--passphrase', password, '--batch', '--decrypt', '/home/pi/dd_script/nopass4u.txt'])
   #Here GPG is called to decrypt the pre-encrypted password file. Naming the decryped file as "pwdfile.txt" is required for the email setup later on. When encrypting a new password file, it is imperative that the same name ("nopass4u.txt") and encryption method ("des3") be used.
   if os.stat("/home/pi/dd_script/pwdfile.txt").st_size == 0: #GPG won't create a file on a bad decryption. This if loop prevents the program from continuing in the event of a bad decryption
       print("Wrong password. Please try again.") #self-explanatory
@@ -32,7 +31,7 @@ def main(): #main function
       shadow_password = crypt.crypt(userpass,'$6$'+salt+'$') #salts the password
       call(['usermod', '-p', shadow_password, 'pi']) #uses usermod to change the password for the user, storing it as a salted password
       #Changing the Hostname
-      hostname = input("Please enter the hostname: \n") #prompt to input host name
+      hostname = raw_input("Please enter the hostname: \n") #prompt to input host name
       call(['raspi-config', 'nonint', 'do_hostname', repr(repr(hostname))]) #uses the raspi-config script to change the hostname
       call(['hostname', '-b', repr(repr(hostname))]) #changes it in the system as well
       call(['systemctl', 'restart', 'avahi-daemon']) #restarts one of the networking services
@@ -66,7 +65,7 @@ def main(): #main function
       makescripts() #actually runs the script making function
       #Email Setup
       print("Would you like to set-up email?\n") #prompts for email setup
-      m_in = input("Yes/No") #prompt again
+      m_in = raw_input("Yes/No") #prompt again
       #we don't get a choice here. It'll do it anyway
       certdir = "/home/pi/.certs/" #sets the cert directory as a variable
       def email_setup(): #email setup function. just makes this easier
@@ -117,3 +116,8 @@ def main(): #main function
         email_setup() #then do the email setup
       cronjobs() #then after do the cronjob
       ipmail() #then sends IP
+      def timezone():
+        timezone="America/Los_Angeles"
+        call(['sudo', 'echo', timezone, '>', '/etc/timezone'])
+        call(['sudo', 'cp', '/usr/share/zoneinfo/' + timezone, '/etc/localtime'])
+      timezone()
