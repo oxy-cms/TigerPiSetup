@@ -24,20 +24,18 @@ def main(): #main function
       file = open("/home/pi/dd_script/pwdfile.txt", "r") #opens the password file as a variable
       userpass = file.read() #converts the contents of the file to a string
       file.close() #closes the password file to save resources. since it's already a string we don't need it anymore
+      hostname = raw_input("Please enter the hostname: \n") #prompt to input host name
       #Changing and Encrypting the User Password
       #h/t to David Ferguson from PiBakery and Filipe Pina on StackOverflow for this section
       ALPHABET = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ./" #alphabet as a string for entropy
       salt = ''.join(random.choice(ALPHABET) for i in range(16)) #picks 16 random characters to use as a salt
-      shadow_password = crypt.crypt(userpass,'$6$'+salt+'$') #salts the password
-      call(['sudo','usermod', '-p', shadow_password, 'pi']) #uses usermod to change the password for the user, storing it as a salted password
-      #Changing the Hostname
-      hostname = raw_input("Please enter the hostname: \n") #prompt to input host name
-      call(['sudo','raspi-config', 'nonint', 'do_hostname', repr(repr(hostname))]) #uses the raspi-config script to change the hostname
-      call(['sudo','hostname', '-b', repr(repr(hostname))]) #changes it in the system as well
-      call(['sudo','systemctl', 'restart', 'avahi-daemon']) #restarts one of the networking services
+      #shadow_password = crypt.crypt(userpass,'$6$'+salt+'$') #salts the password
+      #call(['sudo','usermod', '-p', shadow_password, 'pi']) #uses usermod to change the password for the user, storing it as a salted password
+      call(['sudo','usermod', '-p', userpass, 'pi']) #uses usermod to change the password for the user, storing it as a salted password
       #Setting Up Web Content
       url = raw_input("Please enter the web/slideshow URL: \n") #prompt for URL for slideshow or other web content
       def makescripts(): #easier to group this as one function to create the shell scripts used to launch, restart, etc the web content.
+        call(['touch', '/home/pi/dd_script/launch_chrome.sh'])
         launch = open("/home/pi/dd_script/launch_chrome.sh","w") #file path to write to
         launch.write("sleep 30") #pause so the Pi doesn't eat up all its resources on startup, and allows for network connection
         launch.write("chromium-browser --kiosk --incognito --no-first-run --disable-infobars --disable-session-crashed-bubble " + repr(url)) #launches Chrome. All the arguments are required to disable the ugly yellow bubble upon killing chrome during the refresh. the repr(url) part adds single quotes around the URL so Bash is happy (won't work otherwise.)
@@ -49,7 +47,8 @@ def main(): #main function
         relaunch.write("/bin/bash /home/pi/dd_script/launch_chrome.sh > /dev/null;") #runs the launch script, shoves the output to nowhereland so the cronjob isn't constantly running and eating up resources
         relaunch.close() #closes the file to save resources
         def makeshortcut(): #subscript to autolaunch chrome on startup
-            shortcut = open("/home/pi/.config/autostart/launch_chrome.sh.desktop") #writing .desktop file directly to the proper path, no mv required
+            call(['touch', '/home/pi/dd_script/launch_chrome.desktop'])
+            shortcut = open("/home/pi/dd_script/launch_chrome.desktop","w") #writing .desktop file directly to the proper path, no mv required
             shortcut.write("[Desktop Entry]") #this just says it's a shortcut
             shortcut.write("Name=Launch Chrome") #not needed, but good documentation
             shortcut.write("Comment=by Enny Jole (C/O 2018), Oxy ITS") #credit where credit is due (me)
@@ -57,6 +56,7 @@ def main(): #main function
             shortcut.write("Type=Application") #I don't think this matters except when creating a shortcut for the command prompt. Good documentation practice anyway
             shortcut.write("Encoding=UTF8") #standard encoding
             shortcut.close() #closes the file to save resources
+            call(['sudo', 'mv', '/home/pi/dd_script/launch_chrome.desktop', '/home/pi/.config/autostart/launch_chrome.desktop'])
         if os.path.isdir("/home/pi/.config/autostart/") == True: #tests to see if the autostart directory exists or not
             makeshortcut() #if it does, then the shortcut function runs
         else: #if not--
@@ -64,8 +64,8 @@ def main(): #main function
             makeshortcut() #and then run the shortcut function
       makescripts() #actually runs the script making function
       #Email Setup
-      print("Would you like to set-up email?\n") #prompts for email setup
-      m_in = raw_input("Yes/No") #prompt again
+      print("Would you like to set-up email? \n") #prompts for email setup
+      m_in = raw_input("Yes/No \n") #prompt again
       #we don't get a choice here. It'll do it anyway
       certdir = "/home/pi/.certs/" #sets the cert directory as a variable
       def email_setup(): #email setup function. just makes this easier
@@ -75,7 +75,8 @@ def main(): #main function
         heading = "/-BEGIN CERTIFICATE-/,/-END CERTIFICATE-/p" #heading of the cert as a string
         truehead = repr(heading) #heading with single quotes around it
         call(['echo', '-n', '|', 'openssl', 's_client', '-connect', 'smtp.gmail.com:465', '|', 'sed', '-ne', truehead, '>', '/home/pi/.certs/gmail.crt']) #pulls the SSL certificate from Gmail down and creates a certificate file for it
-        account = open("/etc/nail.rc","w") #creates file for the account info
+        call(['touch', '/home/pi/dd_script/nail.rc'])
+        account = open("/home/pi/dd_script/nail.rc","w") #creates file for the account info
         account.write("account helpdesk {") #writes account info to file, line-by-line
         account.write("set smtp-use-starttls") #writes account info to file, line-by-line
         account.write("set ssl-verify=ignore") #writes account info to file, line-by-line
@@ -88,6 +89,7 @@ def main(): #main function
         account.write("set nss-config-dir=/home/pi/.certs") #writes account info to file, line-by-line
         account.write("}") #writes account info to file, line-by-line
         account.close() #closes the file to save resources
+        call(['sudo', 'mv', '/home/pi/dd_script/nail.rc', '/etc/nail.rc'])
       #Email Logging (Dependent on Email Setup)
       def cronjobs(): #sets up cronjobs and autologging
         oneam = "0 1 " #variable so I don't have to repeat this
@@ -121,3 +123,7 @@ def main(): #main function
         call(['sudo', 'echo', timezone, '>', '/etc/timezone'])
         call(['sudo', 'cp', '/usr/share/zoneinfo/' + timezone, '/etc/localtime'])
       timezone()
+      #Changing the Hostname
+      call(['sudo','raspi-config', 'nonint', 'do_hostname', hostname]) #uses the raspi-config script to change the hostname
+      call(['sudo','hostname', '-b', hostname]) #changes it in the system as well
+      call(['sudo','systemctl', 'restart', 'avahi-daemon']) #restarts one of the networking services
